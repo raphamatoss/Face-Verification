@@ -1,0 +1,92 @@
+from facenet_pytorch import MTCNN, InceptionResnetV1
+from torchvision.transforms import v2
+from pathlib import Path
+from PIL import Image
+import numpy as np
+import mtcnn
+import torch
+import cv2
+
+class preprocessPipeline:
+    def __init__(self, detector, cmap="rgb", device="cpu"):
+        self.detector = detector
+        self.target_size = (224, 224)
+        self.cmap = cmap
+        self.device = device
+
+    def load_image(self, image_input):
+        if isinstance(image_input, str) or isinstance(image_input, Path):
+            image = cv2.imread(image_input)
+        elif isinstance(image_input, np.ndarray):
+            image = image_input
+        elif isinstance(image_input, torch.Tensor):
+            image = image_input.permute(1, 2, 0).cpu().numpy()
+        else:
+            raise Exception(f'Invalid image type: {type(image_input)}')
+
+        if self.cmap == "rgb":
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        else:
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+        return image
+
+    def resize_and_normalize(self, image):
+        if image is None or image.size == 0:
+            raise ValueError("Empty image caught by resize_and_normalize")
+
+        resized_image = cv2.resize(image, self.target_size, interpolation=cv2.INTER_AREA)
+        normalized_image = resized_image.astype(np.float32) / 255.0
+        return normalized_image
+
+    def detect_face(self, image):
+        if isinstance(self.detector, MTCNN): #pytorch based mtcnn
+            image = Image.fromarray(image)  # transforms numpy array into a PIL image
+            self.detector = self.detector.device(device=self.device)
+
+            faces = self.detector(image)
+            if faces is not None:
+                face_image = faces[0]
+                return face_image;
+            else:
+                raise Exception('No face detected')
+        elif isinstance(self.detector, mtcnn.MTCNN): #tensorflow based mtcnn
+            faces = self.detector.detect_face(image)
+            if faces:
+                face = faces[0]
+                x, y, w, h = face['box']
+                x, y = abs(x), abs(y)
+                face_image  = image[y:y+h, x:x+w]
+                return face_image
+            else:
+                raise Exception('No face detected')
+        else:
+            raise Exception(f'Invalid detector type: {type(self.detector)}')
+
+    def preprocess(self, image):
+        image = self.load_image(image)
+        face = self.detect_face(image)
+        if isinstance(face, torch.Tensor):
+            face = face.numpy()
+        return self.resize_and_normalize(face)
+
+class extractionPipeline:
+    def __init__(self, device="cpu"):
+        self.device = device
+        self.model = InceptionResnetV1(pretrained='vggface2').eval().to(self.device)
+        self.transform = v2.Compose([
+            v2.Lambda(lambda x: Image.fromarray((x * 255).astype(np.uint8)) if isinstance(x,
+                                                                                          np.ndarray) and x.dtype == np.float32 else Image.fromarray(
+                x)),
+            v2.Resize((160, 160), antialias=True),
+            v2.ToImage(),
+            v2.ToDtype(torch.float32, scale=True),
+            v2.Normalize(mean=[0.5, 0.5, 0.5],
+                         std=[0.5, 0.5, 0.5])
+        ])
+    def extract(self, image_input):
+        image_tensor = self.transform(image_input).unsqueeze(0).to(self.device)
+        with torch.inference_mode():
+            features = self.model(image_tensor).squeeze().cpu().numpy()
+        return features
+
