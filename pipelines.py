@@ -94,13 +94,25 @@ class extractionPipeline:
 
 # COSINE SIMILARITY FUNCTIONS --------------------------------------
 
+def l2_normalization(input):
+    if isinstance(input, torch.Tensor):
+        norm = torch.linalg.norm(input)
+        return input if norm == 0 else input / norm
+    if isinstance(input, np.ndarray):
+        norm = np.linalg.norm(input)
+        return input if norm == 0 else input / norm
+    raise Exception(f'Invalid input type: {type(input)}')
+
+
 def cos_similarity(input1, input2):
     if isinstance(input1, torch.Tensor):
-        cos = torch.nn.CosineSimilarity(dim=1, eps=1e-6)
-        cos_sim = cos(input1.flatten(), input2.flatten()).item()
+        input1 = l2_normalization(input1)
+        input2 = l2_normalization(input2)
+        cos_sim = torch.dot(input1, input2).item()
     else:
-        dot_product = np.dot(input1.flatten(), input2.flatten())
-        cos_sim = float(dot_product/(np.linalg.norm(input1.flatten()) * np.linalg.norm(input2.flatten())))
+        input1 = l2_normalization(input1)
+        input2 = l2_normalization(input2)
+        cos_sim = np.dot(input1, input2)
     return cos_sim
 
 def cos_sim_to_percentage(cosine_similarity):
