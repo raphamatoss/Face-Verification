@@ -72,23 +72,7 @@ def multi_eval(dataset, path, thresholds):
         recall_list.append(recall)
         f_score_list.append(f_score)
 
-    fig, axes = plt.subplots(1, 3, figsize=(20, 10))
-    axes[0].plot(thresholds, accuracy_list)
-    axes[0].set_title("Accuracy over thresholds")
-    axes[0].set_ylabel("Accuracy")
-    axes[0].set_xlabel("Threshold")
-
-    axes[1].plot(thresholds, recall_list)
-    axes[1].set_title("Recall over thresholds")
-    axes[1].set_ylabel("Recall")
-    axes[1].set_xlabel("Threshold")
-
-    axes[2].plot(thresholds, f_score_list)
-    axes[2].set_title("F1-Score over thresholds")
-    axes[2].set_ylabel("F1-Score")
-    axes[2].set_xlabel("Threshold")
-
-    plt.show()
+    plot_metrics(accuracy_list, recall_list, f_score_list, thresholds)
 
 def plot_metrics(accuracy, recall, f_score, thresholds):
     fig, axes = plt.subplots(1, 3, figsize=(20, 10))
