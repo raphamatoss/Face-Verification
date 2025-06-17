@@ -1,4 +1,5 @@
-from facenet_pytorch import MTCNN, InceptionResnetV1
+import facenet_pytorch
+from facenet_pytorch import InceptionResnetV1
 from torchvision.transforms import v2
 from pathlib import Path
 from PIL import Image
@@ -40,7 +41,7 @@ class preprocessPipeline:
         return normalized_image
 
     def detect_face(self, image):
-        if isinstance(self.detector, MTCNN): #pytorch based mtcnn
+        if isinstance(self.detector, facenet_pytorch.MTCNN): #pytorch based mtcnn
             image = Image.fromarray(image)  # transforms numpy array into a PIL image
             self.detector = self.detector.device(device=self.device)
 
@@ -51,7 +52,7 @@ class preprocessPipeline:
             else:
                 raise Exception('No face detected')
         elif isinstance(self.detector, mtcnn.MTCNN): #tensorflow based mtcnn
-            faces = self.detector.detect_face(image)
+            faces = self.detector.detect_faces(image)
             if faces:
                 face = faces[0]
                 x, y, w, h = face['box']
@@ -90,3 +91,18 @@ class extractionPipeline:
             features = self.model(image_tensor).squeeze().cpu().numpy()
         return features
 
+
+# COSINE SIMILARITY FUNCTIONS --------------------------------------
+
+def cos_similarity(input1, input2):
+    if isinstance(input1, torch.Tensor):
+        cos = torch.nn.CosineSimilarity(dim=1, eps=1e-6)
+        cos_sim = cos(input1.flatten(), input2.flatten()).item()
+    else:
+        dot_product = np.dot(input1.flatten(), input2.flatten())
+        cos_sim = float(dot_product/(np.linalg.norm(input1.flatten()) * np.linalg.norm(input2.flatten())))
+    return cos_sim
+
+def cos_sim_to_percentage(cosine_similarity):
+    cosine_similarity = np.clip(cosine_similarity, 0, 1)
+    return 100 * cosine_similarity
