@@ -1,5 +1,5 @@
 import facenet_pytorch
-from facenet_pytorch import InceptionResnetV1
+from facenet_pytorch import InceptionResnetV1, MTCNN
 from torchvision.transforms import v2
 from pathlib import Path
 from PIL import Image
@@ -29,6 +29,7 @@ class preprocessPipeline:
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         else:
             image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            image = cv2.merge([image, image, image])
 
         return image
 
@@ -43,11 +44,11 @@ class preprocessPipeline:
     def detect_face(self, image):
         if isinstance(self.detector, facenet_pytorch.MTCNN): #pytorch based mtcnn
             image = Image.fromarray(image)  # transforms numpy array into a PIL image
-            self.detector = self.detector.device(device=self.device)
+            self.detector.to(self.device)
 
             faces = self.detector(image)
-            if faces is not None:
-                face_image = faces[0]
+            if faces is not None: #largest is selected
+                face_image = faces
                 return face_image;
             else:
                 raise Exception('No face detected')
@@ -68,7 +69,7 @@ class preprocessPipeline:
         image = self.load_image(image)
         face = self.detect_face(image)
         if isinstance(face, torch.Tensor):
-            face = face.numpy()
+            face = face.permute(1, 2, 0).cpu().numpy()
         return self.resize_and_normalize(face)
 
 class extractionPipeline:
