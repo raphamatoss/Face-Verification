@@ -12,7 +12,7 @@ f = open("../dataset_path.txt")
 path = f.read()
 dataset = dr.build_dataset(path)
 
-transformed_dataset_path = Path("../pkl/smtcnn_smtcnn_rgb.pkl")
+transformed_dataset_path = Path("../pkl/standard_mtcnn.pkl")
 if transformed_dataset_path.exists():
     print("Dataset already exists. Loading...")
     with open(transformed_dataset_path, "rb") as f:
