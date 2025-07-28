@@ -93,6 +93,17 @@ class extractionPipeline:
         return features
 
 
+class fullPipeline:
+    def __init__(self, detector, device="cpu"):
+        self.device = device
+        self.preprocess = preprocessPipeline(detector, device)
+        self.extraction = extractionPipeline(device)
+
+    def process(self, input):
+        preprocessed = self.preprocess.preprocess(input)
+        embedding = self.extraction.extract(preprocessed)
+        return embedding
+
 # COSINE SIMILARITY FUNCTIONS --------------------------------------
 
 def l2_normalization(input):
